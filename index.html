@@ -240,11 +240,17 @@ function linhas() {
   return out;
 }
 
-function estadoEfetivo(p) { var e = estadoDe(p.id); if (p.fora && e !== "nao_segue") return "resolvido"; return e; }
+function estadoEfetivo(p) {
+  var e = estadoDe(p.id);
+  if (p.fora && e !== "nao_segue") return "resolvido";
+  // Aberto e só de acompanhar não entra em "Abertos": lá ficam só os que pedem ação.
+  if (e === "aberto" && p.gravidade === "acompanhar") return "acompanhar";
+  return e;
+}
 
 function render() {
   var d = S.dados, todas = linhas();
-  var cont = { aberto: 0, cobrado: 0, nao_segue: 0, resolvido: 0 };
+  var cont = { aberto: 0, cobrado: 0, nao_segue: 0, resolvido: 0, acompanhar: 0 };
   todas.forEach(function (p) { cont[estadoEfetivo(p)]++; });
   var lista = todas.filter(function (p) {
     if (S.filtro !== "todos" && estadoEfetivo(p) !== S.filtro) return false;
@@ -259,14 +265,14 @@ function render() {
     " · só pedidos pagos com problema · " + d.pedidos.filter(function (p) { return p.gravidade === "agir"; }).length + " pedem ação, " +
     d.pedidos.filter(function (p) { return p.gravidade === "acompanhar"; }).length + " para acompanhar</p></div>"));
   var cards = el('<div class="cards"></div>');
-  [["aberto", "Abertos"], ["cobrado", "Cobrados, aguardando"], ["nao_segue", "Combinado, não segue"], ["resolvido", "Resolvidos"]].forEach(function (c) {
+  [["aberto", "Pedem ação"], ["cobrado", "Cobrados, aguardando"], ["nao_segue", "Combinado, não segue"], ["resolvido", "Resolvidos"]].forEach(function (c) {
     var x = el('<div class="card c-' + c[0] + (S.filtro === c[0] ? " on" : "") + '"><div class="l">' + c[1] + '</div><div class="v">' + cont[c[0]] + "</div></div>");
     x.onclick = function () { S.filtro = S.filtro === c[0] ? "todos" : c[0]; S.sel = {}; render(); };
     cards.appendChild(x);
   });
   w.appendChild(cards);
   var bar = el('<div class="bar"></div>');
-  [["aberto", "Abertos"], ["cobrado", "Cobrados"], ["nao_segue", "Não segue"], ["resolvido", "Resolvidos"], ["todos", "Todos"]].forEach(function (t) {
+  [["aberto", "Pedem ação"], ["cobrado", "Cobrados"], ["nao_segue", "Não segue"], ["resolvido", "Resolvidos"], ["acompanhar", "Acompanhar"], ["todos", "Todos"]].forEach(function (t) {
     var b = el('<button class="tab' + (S.filtro === t[0] ? " on" : "") + '">' + t[1] + " (" + (t[0] === "todos" ? todas.length : cont[t[0]]) + ")</button>");
     b.onclick = function () { S.filtro = t[0]; S.sel = {}; render(); };
     bar.appendChild(b);
