@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Central de pedidos — LitorAlma</title>
+<!--
+  Central de pedidos com problema — publicada no GitHub Pages (28/10/2026).
+  Fonte: litoralma-dashboard/painel-github/index.html (o repositório recebe uma cópia
+  a cada `npm run publicar`). Os dados (data.enc.json) e o andamento (status.enc.json)
+  são cifrados com a senha da equipe: PBKDF2-SHA256 + AES-256-GCM, o mesmo formato de
+  src/lib/painel/crypto.ts. Esta página não tem dado nenhum em texto puro.
+-->
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --line: #e5e4df; --txt: #1f1f1d; --dim: #6b6a65; --muted: #9a998f;
+    --red: #b42318; --red-bg: #fdecea; --amber: #8a5300; --amber-bg: #fdf3e1; --green: #1d6b3a; --green-bg: #e7f4ec;
+    --blue: #1d5fb4; --gray-bg: #efeee9; --btn: #1f1f1d; --btn-txt: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413; --card: #1c1c1b; --line: #2e2e2c; --txt: #ecebe6; --dim: #a3a29b; --muted: #77766f;
+      --red: #f19a91; --red-bg: #3a1714; --amber: #f2c26b; --amber-bg: #352509; --green: #8fd3a8; --green-bg: #11291a;
+      --blue: #8ab8f5; --gray-bg: #262624; --btn: #ecebe6; --btn-txt: #141413;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--txt); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 2px; }
+  .sub { color: var(--dim); font-size: 13px; margin: 0; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 18px 0 14px; }
+  .card { border-radius: 10px; padding: 12px 14px; cursor: pointer; border: 2px solid transparent; }
+  .card.on { border-color: currentColor; }
+  .card .l { font-size: 12px; } .card .v { font-size: 26px; font-weight: 600; line-height: 1.2; }
+  .c-aberto { background: var(--red-bg); color: var(--red); }
+  .c-cobrado { background: var(--amber-bg); color: var(--amber); }
+  .c-nao_segue { background: var(--gray-bg); color: var(--dim); }
+  .c-resolvido { background: var(--green-bg); color: var(--green); }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0 4px; }
+  .tab { border: 1px solid var(--line); background: var(--card); color: var(--dim); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  .tab.on { background: var(--btn); color: var(--btn-txt); border-color: var(--btn); }
+  input[type=search], input[type=password], input[type=text], textarea, select {
+    font: inherit; color: var(--txt); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  input[type=search] { margin-left: auto; min-width: 220px; }
+  button { font: inherit; font-size: 13px; cursor: pointer; border-radius: 8px; padding: 6px 12px; border: 1px solid var(--line); background: var(--card); color: var(--txt); }
+  button.prim { background: var(--btn); color: var(--btn-txt); border-color: var(--btn); }
+  button:disabled { opacity: .5; cursor: default; }
+  .grp { margin-top: 18px; }
+  .grp-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .grp-h b { font-weight: 600; } .grp-h .n { color: var(--dim); font-size: 13px; }
+  .grp-h .acao { color: var(--dim); font-size: 12px; flex-basis: 100%; }
+  .row { display: grid; grid-template-columns: 22px 70px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .row .num a { color: var(--txt); font-weight: 600; text-decoration: none; }
+  .row .num a:hover { color: var(--blue); }
+  .row .det { font-size: 14px; } .row .meta { font-size: 12px; color: var(--muted); }
+  .row .meta a { color: var(--blue); text-decoration: none; }
+  .st { font-size: 12px; margin-top: 2px; }
+  .st-cobrado { color: var(--amber); } .st-nao_segue { color: var(--dim); } .st-resolvido { color: var(--green); }
+  .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--gray-bg); color: var(--dim); margin-left: 6px; }
+  .vazio { color: var(--dim); padding: 24px 0; text-align: center; }
+  .sel-bar { position: sticky; bottom: 12px; margin-top: 16px; background: var(--btn); color: var(--btn-txt); border-radius: 12px; padding: 10px 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .sel-bar button { background: var(--btn-txt); color: var(--btn); border: none; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+  .modal { background: var(--card); border-radius: 14px; padding: 18px; width: 100%; max-width: 460px; }
+  .modal h2 { font-size: 17px; margin: 0 0 10px; font-weight: 600; }
+  .modal label { display: flex; gap: 8px; align-items: center; padding: 6px 0; font-size: 14px; }
+  .modal textarea { width: 100%; min-height: 70px; margin-top: 8px; }
+  .modal .fim { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+  .hist { font-size: 12px; color: var(--muted); margin-top: 10px; max-height: 120px; overflow: auto; }
+  .gate { max-width: 360px; margin: 12vh auto; background: var(--card); border-radius: 14px; padding: 22px; border: 1px solid var(--line); }
+  .gate input { width: 100%; margin: 10px 0; }
+  .err { color: var(--red); font-size: 13px; min-height: 18px; }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--btn); color: var(--btn-txt); padding: 8px 14px; border-radius: 10px; font-size: 13px; z-index: 20; }
+  @media (max-width: 640px) {
+    .row { grid-template-columns: 22px minmax(0, 1fr); }
+    .row .num { grid-column: 2; } .row .det-col { grid-column: 1 / -1; } .row .acts { grid-column: 1 / -1; justify-content: flex-start; }
+    input[type=search] { margin-left: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+var ESTADOS = {
+  aberto: "Aberto",
+  cobrado: "Cobrado, aguardando",
+  nao_segue: "Combinado, não segue",
+  resolvido: "Resolvido"
+};
+var S = { dados: null, senha: null, status: { entries: {} }, sha: null, filtro: "aberto", busca: "", sel: {}, nome: null };
+
+function el(html) { var t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; }
+function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function b64(s) { var b = atob(s), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+function ub64(u) { var s = ""; for (var i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); }
+function dataBr(iso) { try { return new Date(iso).toLocaleDateString("pt-BR"); } catch (e) { return iso; } }
+function toast(t) { var d = el('<div class="toast">' + esc(t) + "</div>"); document.body.appendChild(d); setTimeout(function () { d.remove(); }, 2600); }
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+
+async function chave(senha, salt, iter) {
+  var base = await crypto.subtle.importKey("raw", new TextEncoder().encode(senha), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt: salt, iterations: iter, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+async function decifrar(blob, senha) {
+  var k = await chave(senha, b64(blob.salt), blob.iter);
+  var plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(blob.iv) }, k, b64(blob.ct));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+async function cifrar(valor, senha) {
+  var salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)), iter = 200000;
+  var k = await chave(senha, salt, iter);
+  var ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, k, new TextEncoder().encode(JSON.stringify(valor))));
+  return { v: 1, iter: iter, salt: ub64(salt), iv: ub64(iv), ct: ub64(ct) };
+}
+
+function gh(path, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({ Accept: "application/vnd.github+json" }, opts.headers || {});
+  if (S.dados && S.dados.token) opts.headers.Authorization = "Bearer " + S.dados.token;
+  return fetch("https://api.github.com/repos/" + S.dados.repo + "/" + path, Object.assign({ cache: "no-store" }, opts));
+}
+
+async function carregarStatus() {
+  var r = await gh("contents/status.enc.json");
+  if (r.status === 404) { S.status = { entries: {} }; S.sha = null; return; }
+  if (!r.ok) throw new Error("GitHub respondeu " + r.status);
+  var j = await r.json();
+  S.sha = j.sha;
+  var blob = JSON.parse(new TextDecoder().decode(b64(j.content.replace(/\n/g, ""))));
+  S.status = await decifrar(blob, S.senha);
+  if (!S.status.entries) S.status.entries = {};
+}
+
+async function gravarStatus(mudancas) {
+  if (!S.dados.token) { toast("Gravar andamento ainda não está ligado (falta o token do GitHub)."); return false; }
+  for (var tentativa = 0; tentativa < 3; tentativa++) {
+    await carregarStatus();
+    Object.keys(mudancas).forEach(function (id) {
+      var novo = mudancas[id], atual = S.status.entries[id] || { historico: [] };
+      var hist = (atual.historico || []).concat([{ estado: novo.estado, nota: novo.nota, por: novo.por, em: novo.em }]).slice(-20);
+      S.status.entries[id] = { n: novo.n, estado: novo.estado, nota: novo.nota, por: novo.por, em: novo.em, historico: hist };
+    });
+    var blob = await cifrar(S.status, S.senha);
+    var corpo = { message: "andamento: " + Object.keys(mudancas).length + " pedido(s) por " + (S.nome || "?"), content: ub64(new TextEncoder().encode(JSON.stringify(blob))) };
+    if (S.sha) corpo.sha = S.sha;
+    var r = await gh("contents/status.enc.json", { method: "PUT", body: JSON.stringify(corpo), headers: { "Content-Type": "application/json" } });
+    if (r.ok) { S.sha = (await r.json()).content.sha; return true; }
+    if (r.status !== 409 && r.status !== 422) { toast("Não salvou (GitHub " + r.status + ")."); return false; }
+  }
+  toast("Outra pessoa salvou ao mesmo tempo. Tente de novo.");
+  return false;
+}
+
+function estadoDe(id) { var e = S.status.entries[id]; return e ? e.estado : "aberto"; }
+
+function pedidoNome() {
+  if (S.nome) return S.nome;
+  var n = prompt("Seu nome (fica registrado em cada marcação):", "");
+  if (n && n.trim()) { S.nome = n.trim(); lsSet("painel_nome", S.nome); }
+  return S.nome;
+}
+
+async function marcar(ids, estado, nota) {
+  if (!pedidoNome()) return;
+  var agora = new Date().toISOString(), m = {};
+  ids.forEach(function (id) {
+    var p = S.dados.pedidos.find(function (x) { return x.id === id; });
+    var antigo = S.status.entries[id];
+    m[id] = { n: p ? p.n : (antigo && antigo.n) || id, estado: estado, nota: nota || "", por: S.nome, em: agora };
+  });
+  if (await gravarStatus(m)) { S.sel = {}; toast(ids.length + " pedido(s): " + ESTADOS[estado]); render(); }
+}
+
+function mensagemFornecedora(ids) {
+  var porRegra = {};
+  ids.forEach(function (id) {
+    var p = S.dados.pedidos.find(function (x) { return x.id === id; });
+    if (p) (porRegra[p.regra] = porRegra[p.regra] || []).push(p);
+  });
+  var nome = S.dados.fornecedora.nome ? ", " + S.dados.fornecedora.nome : "";
+  var partes = ["Oi" + nome + "! Tudo bem?"];
+  S.dados.grupos.forEach(function (g) {
+    var ps = porRegra[g.regra];
+    if (!ps) return;
+    partes.push("");
+    partes.push((ps.length === 1 ? "O pedido abaixo " : "Os pedidos abaixo ") + g.pedidoFornecedora);
+    ps.forEach(function (p) { partes.push("• " + p.n + " (" + dataBr(p.data) + ")" + (p.codigo ? " — rastreio " + p.codigo : "")); });
+  });
+  partes.push(""); partes.push("Obrigado!");
+  return partes.join("\n");
+}
+
+async function cobrar(ids) {
+  if (!ids.length) return;
+  var txt = mensagemFornecedora(ids), num = (S.dados.fornecedora.whatsapp || "").replace(/\D/g, "");
+  if (num) window.open("https://wa.me/" + num + "?text=" + encodeURIComponent(txt), "_blank");
+  else { try { await navigator.clipboard.writeText(txt); toast("Mensagem copiada. Cole no chat da fornecedora."); } catch (e) { prompt("Copie a mensagem:", txt); } }
+  await marcar(ids, "cobrado", "Cobrado pelo painel" + (num ? " (WhatsApp)" : ""));
+}
+
+function abrirMarcar(ids) {
+  var um = ids.length === 1 ? S.status.entries[ids[0]] : null;
+  var atual = um ? um.estado : "aberto";
+  var hist = um && um.historico ? um.historico.slice().reverse().map(function (h) {
+    return "<div>" + dataBr(h.em) + " · " + esc(ESTADOS[h.estado] || h.estado) + " · " + esc(h.por) + (h.nota ? " — " + esc(h.nota) : "") + "</div>";
+  }).join("") : "";
+  var titulo = ids.length === 1 ? "Pedido " + esc((S.dados.pedidos.find(function (x) { return x.id === ids[0]; }) || {}).n || (um && um.n) || "") : ids.length + " pedidos";
+  var m = el('<div class="modal-bg"><div class="modal"><h2>' + titulo + "</h2>" +
+    Object.keys(ESTADOS).map(function (k) {
+      return '<label><input type="radio" name="est" value="' + k + '"' + (k === atual ? " checked" : "") + "> " + ESTADOS[k] + "</label>";
+    }).join("") +
+    '<textarea placeholder="Observação (opcional) — ex.: falei com ela, vai reenviar dia 30">' + esc(um ? um.nota : "") + "</textarea>" +
+    (hist ? '<div class="hist">' + hist + "</div>" : "") +
+    '<div class="fim"><button data-x>Cancelar</button><button class="prim" data-ok>Salvar</button></div></div></div>');
+  m.querySelector("[data-x]").onclick = function () { m.remove(); };
+  m.onclick = function (e) { if (e.target === m) m.remove(); };
+  m.querySelector("[data-ok]").onclick = async function () {
+    var est = m.querySelector("input[name=est]:checked").value, nota = m.querySelector("textarea").value.trim();
+    this.disabled = true;
+    await marcar(ids, est, nota);
+    m.remove();
+  };
+  document.body.appendChild(m);
+}
+
+function linhas() {
+  var ids = {}, out = [];
+  S.dados.pedidos.forEach(function (p) { ids[p.id] = 1; out.push(p); });
+  Object.keys(S.status.entries).forEach(function (id) {
+    if (ids[id]) return;
+    var e = S.status.entries[id];
+    out.push({ id: id, n: e.n || id, data: e.em, dias: null, parado: null, regra: "_fora", gravidade: "acompanhar",
+      detalhe: "Saiu da lista de alertas sozinho (entregue ou voltou a andar).", situacao: "", codigo: null, valor: null, shopify: null, rastreio: null, fora: true });
+  });
+  return out;
+}
+
+function estadoEfetivo(p) { var e = estadoDe(p.id); if (p.fora && e !== "nao_segue") return "resolvido"; return e; }
+
+function render() {
+  var d = S.dados, todas = linhas();
+  var cont = { aberto: 0, cobrado: 0, nao_segue: 0, resolvido: 0 };
+  todas.forEach(function (p) { cont[estadoEfetivo(p)]++; });
+  var lista = todas.filter(function (p) {
+    if (S.filtro !== "todos" && estadoEfetivo(p) !== S.filtro) return false;
+    if (S.busca && (p.n + " " + (p.codigo || "")).toLowerCase().indexOf(S.busca) < 0) return false;
+    return true;
+  });
+  var nSel = Object.keys(S.sel).length;
+  var app = document.getElementById("app");
+  app.innerHTML = "";
+  var w = el('<div class="wrap"></div>');
+  w.appendChild(el("<div><h1>Central de pedidos</h1><p class=\"sub\">Atualizado em " + new Date(d.geradoEm).toLocaleString("pt-BR") +
+    " · só pedidos pagos com problema · " + d.pedidos.filter(function (p) { return p.gravidade === "agir"; }).length + " pedem ação, " +
+    d.pedidos.filter(function (p) { return p.gravidade === "acompanhar"; }).length + " para acompanhar</p></div>"));
+  var cards = el('<div class="cards"></div>');
+  [["aberto", "Abertos"], ["cobrado", "Cobrados, aguardando"], ["nao_segue", "Combinado, não segue"], ["resolvido", "Resolvidos"]].forEach(function (c) {
+    var x = el('<div class="card c-' + c[0] + (S.filtro === c[0] ? " on" : "") + '"><div class="l">' + c[1] + '</div><div class="v">' + cont[c[0]] + "</div></div>");
+    x.onclick = function () { S.filtro = S.filtro === c[0] ? "todos" : c[0]; S.sel = {}; render(); };
+    cards.appendChild(x);
+  });
+  w.appendChild(cards);
+  var bar = el('<div class="bar"></div>');
+  [["aberto", "Abertos"], ["cobrado", "Cobrados"], ["nao_segue", "Não segue"], ["resolvido", "Resolvidos"], ["todos", "Todos"]].forEach(function (t) {
+    var b = el('<button class="tab' + (S.filtro === t[0] ? " on" : "") + '">' + t[1] + " (" + (t[0] === "todos" ? todas.length : cont[t[0]]) + ")</button>");
+    b.onclick = function () { S.filtro = t[0]; S.sel = {}; render(); };
+    bar.appendChild(b);
+  });
+  var busca = el('<input type="search" placeholder="Procurar pedido ou código" value="' + esc(S.busca) + '">');
+  busca.oninput = function () { S.busca = this.value.trim().toLowerCase(); var pos = this.selectionStart; render(); var nb = document.querySelector("input[type=search]"); nb.focus(); nb.setSelectionRange(pos, pos); };
+  bar.appendChild(busca);
+  w.appendChild(bar);
+
+  var grupos = d.grupos.concat([{ regra: "_fora", titulo: "Saíram da lista sozinhos", acao: "Já não aparecem nos alertas. Ficam aqui só para registro.", gravidade: "acompanhar" }]);
+  var algum = false;
+  grupos.forEach(function (g) {
+    var ps = lista.filter(function (p) { return p.regra === g.regra; });
+    if (!ps.length) return;
+    algum = true;
+    var gr = el('<div class="grp"></div>');
+    var h = el('<div class="grp-h"><input type="checkbox" title="Selecionar o grupo"><b>' + esc(g.titulo) + '</b><span class="n">' + ps.length +
+      (g.gravidade === "agir" ? "" : '<span class="pill">acompanhar</span>') + '</span><span class="acao">' + esc(g.acao) + "</span></div>");
+    var cbg = h.querySelector("input");
+    cbg.checked = ps.every(function (p) { return S.sel[p.id]; });
+    cbg.onchange = function () { ps.forEach(function (p) { if (cbg.checked) S.sel[p.id] = 1; else delete S.sel[p.id]; }); render(); };
+    gr.appendChild(h);
+    ps.forEach(function (p) {
+      var e = S.status.entries[p.id], est = estadoEfetivo(p);
+      var st = e ? '<div class="st st-' + e.estado + '">' + esc(ESTADOS[e.estado]) + " · " + dataBr(e.em) + " por " + esc(e.por) + (e.nota ? " — " + esc(e.nota) : "") + "</div>" : "";
+      var meta = [p.data ? dataBr(p.data) : "", p.valor ? "R$ " + Number(p.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "",
+        p.codigo ? (p.rastreio ? '<a href="' + esc(p.rastreio) + '" target="_blank" rel="noopener">' + esc(p.codigo) + "</a>" : esc(p.codigo)) : "", esc(p.situacao)].filter(Boolean).join(" · ");
+      var r = el('<div class="row"><input type="checkbox"' + (S.sel[p.id] ? " checked" : "") + '><div class="num">' +
+        (p.shopify ? '<a href="' + esc(p.shopify) + '" target="_blank" rel="noopener" title="Abrir na Shopify">' + esc(p.n) + "</a>" : esc(p.n)) +
+        '</div><div class="det-col"><div class="det">' + esc(p.detalhe) + '</div><div class="meta">' + meta + "</div>" + st + '</div><div class="acts"></div></div>');
+      r.querySelector("input").onchange = function () { if (this.checked) S.sel[p.id] = 1; else delete S.sel[p.id]; render(); };
+      var acts = r.querySelector(".acts");
+      if (!p.fora && est !== "resolvido" && est !== "nao_segue") {
+        var bc = el("<button>" + (est === "cobrado" ? "Cobrar de novo" : "Cobrar fornecedora") + "</button>");
+        bc.onclick = function () { cobrar([p.id]); };
+        acts.appendChild(bc);
+      }
+      var bm = el("<button>Marcar…</button>");
+      bm.onclick = function () { abrirMarcar([p.id]); };
+      acts.appendChild(bm);
+      gr.appendChild(r);
+    });
+    w.appendChild(gr);
+  });
+  if (!algum) w.appendChild(el('<div class="vazio">Nada aqui.</div>'));
+
+  if (nSel) {
+    var sb = el('<div class="sel-bar"><span>' + nSel + ' selecionado(s)</span><button data-c>Cobrar fornecedora (uma mensagem só)</button><button data-m>Marcar…</button><button data-l>Limpar</button></div>');
+    sb.querySelector("[data-c]").onclick = function () { cobrar(Object.keys(S.sel)); };
+    sb.querySelector("[data-m]").onclick = function () { abrirMarcar(Object.keys(S.sel)); };
+    sb.querySelector("[data-l]").onclick = function () { S.sel = {}; render(); };
+    w.appendChild(sb);
+  }
+  var rod = el('<p class="sub" style="margin-top:24px">' + (S.nome ? "Você está como <b>" + esc(S.nome) + "</b> · " : "") +
+    '<a href="#" data-sair style="color:var(--blue)">sair deste aparelho</a>' + (d.token ? "" : " · gravar andamento ainda desligado") + "</p>");
+  rod.querySelector("[data-sair]").onclick = function (e) { e.preventDefault(); lsSet("painel_senha", null); lsSet("painel_nome", null); location.reload(); };
+  w.appendChild(rod);
+  app.appendChild(w);
+}
+
+async function entrar(senha, lembrar) {
+  var r = await fetch("data.enc.json?t=" + Date.now(), { cache: "no-store" });
+  if (!r.ok) throw new Error("Os dados ainda não foram publicados.");
+  var blob = await r.json();
+  S.dados = await decifrar(blob, senha);
+  S.senha = senha;
+  if (lembrar) lsSet("painel_senha", senha);
+  S.nome = lsGet("painel_nome");
+  try { await carregarStatus(); } catch (e) { toast("Não consegui ler o andamento: " + e.message); }
+  render();
+}
+
+function portao(msg) {
+  var app = document.getElementById("app");
+  app.innerHTML = "";
+  var g = el('<div class="gate"><h1>Central de pedidos</h1><p class="sub">LitorAlma · acesso da equipe</p>' +
+    '<input type="password" placeholder="Senha da equipe" autofocus><label class="sub"><input type="checkbox" checked> lembrar neste aparelho</label>' +
+    '<div class="err">' + esc(msg || "") + '</div><button class="prim" style="width:100%">Entrar</button></div>');
+  var inp = g.querySelector("input[type=password]"), btn = g.querySelector("button"), err = g.querySelector(".err");
+  async function ir() {
+    if (!inp.value) { err.textContent = "Digite a senha."; return; }
+    btn.disabled = true; err.textContent = "";
+    try { await entrar(inp.value, g.querySelector("input[type=checkbox]").checked); }
+    catch (e) { btn.disabled = false; err.textContent = e.name === "OperationError" ? "Senha errada." : (e.message || "Não deu para abrir."); }
+  }
+  btn.onclick = ir;
+  inp.onkeydown = function (e) { if (e.key === "Enter") ir(); };
+  inp.oninput = function () { err.textContent = ""; };
+  app.appendChild(g);
+}
+
+(async function () {
+  var salva = lsGet("painel_senha");
+  if (salva) { try { await entrar(salva, true); return; } catch (e) { lsSet("painel_senha", null); } }
+  portao();
+})();
+</script>
+</body>
+</html>
